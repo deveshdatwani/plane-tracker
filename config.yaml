@@ -1,0 +1,51 @@
+# Plane Tracker Configuration
+# ============================
+
+# Detection settings (YOLO model)
+detection:
+  model_path: "yolov8n-seg.pt"
+  confidence_threshold: 0.45
+  iou_threshold: 0.4
+  verbose: false
+
+# Tracker settings (Kalman filter based)
+tracker:
+  iou_threshold: 0.2       # Minimum IoU to match detection to track
+  max_age: 30              # Frames before deleting lost track
+  min_hits: 10             # Minimum hits before track is considered confirmed
+
+# OCR settings (tail number extraction)
+ocr:
+  enabled: true
+  interval: 10             # Run OCR every N frames per track
+
+# Hangar event detection
+hangar:
+  cooldown_frames: 30      # Minimum frames between events
+  iou_threshold: 0.01      # Overlap threshold with hangar zone
+  # Note: hangar side (left/right) is auto-detected based on video name
+  flash_on_event: true     # Flash boundary when enter/exit detected
+  flash_color: [140, 200, 220]  # BGR - muted/subtle yellow
+  flash_rate: 4            # Flash toggle every N frames
+
+# Debug overlay settings
+debug:
+  level: 2                 # 0=off, 1=minimal, 2=full
+  show_frame_id: true
+  show_detections: true
+  show_tracks: true
+  show_latency: true
+  show_fps: true
+  processing_debug: false  # Draw all detections with IDs and trajectory curves (expensive)
+  show_ground_truth: true # Overlay GT annotations for debugging/comparison
+  metrics_iou_threshold: 0.5  # IOU threshold for precision/recall/HOTA metrics
+
+# Visualization settings
+visualization:
+  track_color_active: [200, 220, 100]      # BGR
+  track_color_lost: [120, 120, 200]        # BGR
+  hangar_boundary_color: [60, 60, 60]      # BGR
+  gt_color: [255, 0, 255]                  # BGR - magenta for ground truth
+  tail_number_color: [0, 255, 255]         # BGR (cyan/yellow)
+  font_scale: 0.45
+  font_thickness: 1
