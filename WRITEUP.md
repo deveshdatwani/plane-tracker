@@ -16,12 +16,13 @@ c. For the night scenario with overlapping airplanes, I used a segmentation mode
 ```
 
 2. What are its limitations given the footage provided?
+```
 a. If an airplane leaves for longer than the track persistence time (500s), its ID switches after re-entry due to track termination.
 b. The solution will struggle in case of long occlusions between planes.
 c. The detection solution (yolov8n) is trained on COCO dataset, so it struggles with localization and classification accuracy on airplanes, especially near hangars.
 d. Without reliable frames timestamps, kalman filter (assumes constant intervals) tracking stability will degrade in cases of jitter / frame drops. 
 e. If the camera is bumped even slightly, it needs to be recalibrated for extrinsics to correctly localize the hangar tripwire in image frame.
-    
+```
 ---
 
 ## Part 2 — Tracking
@@ -49,16 +50,21 @@ a. Drawing debug prediction boxes and traces in different colros
 ## Part 3 — Hangar Entry Detection
 
 1. How did you define "enters the hangar"? What signals did you use?
+```
 a. I generated a virtual tripwire for hangars. Detection is triggered by a simple gating logic when an airplane crosses the tripwire.
+```
 
 2. Why did you choose this approach over alternatives?
+```
 a. Auto detection is prone for failure presently there's not enough context / features / signal for any model to work with for anchor detection. 
 b. Additionally, the anchor box would not be stable with per frame detection.
+```
 
 3. What failure modes does your approach have?
+```
 a. FPs and FNs can be generated if the camera is moved. It would require re-calibration. An anti-wobble system can generate alerts for quick TTR.
 b. 
-
+```
 ---
 
 ## Part 4 — Evaluation
