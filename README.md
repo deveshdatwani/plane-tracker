@@ -1,5 +1,7 @@
 # Plane Tracker
 
+**Approach:** Prioritized extensive visualization to enable manual validation in the absence of robust ground truths.
+
 Aircraft tracking with hangar enter/exit event detection.
 
 ![Demo with GT overlay and metrics](outputs/demo_metrics.gif)
