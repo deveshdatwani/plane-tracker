@@ -39,6 +39,7 @@ debug:
   processing_debug: false  # Draw all detections with IDs and trajectory curves (expensive)
   show_ground_truth: true # Overlay GT annotations for debugging/comparison
   metrics_iou_threshold: 0.5  # IOU threshold for precision/recall/HOTA metrics
+  eva: false                # If false, sequence is treated as unseen (no GT), metrics show "n/a"
 
 # Visualization settings
 visualization:

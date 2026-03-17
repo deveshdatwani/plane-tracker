@@ -50,6 +50,7 @@ DEFAULTS = {
         "processing_debug": False,
         "show_ground_truth": False,
         "metrics_iou_threshold": 0.5,
+        "eva": True,
     },
     "visualization": {
         "track_color_active": [200, 220, 100],
