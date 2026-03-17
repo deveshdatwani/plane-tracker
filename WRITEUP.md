@@ -9,9 +9,11 @@
 ## Part 1 — Detection
 
 1. Why did you choose this algorithm for this domain specifically?
+```
 a. I chose YOLOV8n to prioritize tracker robustness for reducing reliance on heay models for edge deployment.
 b. The airplane positions in the footage are sparse (except 1), large relative to the scene, and move slowly. So a small real-time detector is sufficient. 
 c. For the night scenario with overlapping airplanes, I used a segmentation model to obtain more precise object boundaries, which improves tracking stability during overlaps. This works for other cases too at an additional 10-15% cost.
+```
 
 2. What are its limitations given the footage provided?
 a. If an airplane leaves for longer than the track persistence time (500s), its ID switches after re-entry due to track termination.
@@ -25,8 +27,12 @@ e. If the camera is bumped even slightly, it needs to be recalibrated for extrin
 ## Part 2 — Tracking
 
 1. Which data association algorithm did you choose and why?
+```
 a. I used my boilerplate code for multi object tracking for initial tests. 
 b. It generalised well over sequences in the footage, after fine tuning noise parameters for process and measurements steps. 
+c. Since the ground truths were not robust, I approach the problem with extensive visualizations and HOTA, class agnostic HOTA, precision and recall. 
+d. Precision and recall can give us a good estimate of 2D detection, while HOTA and class agnostic HOTA give us not perfect, but some understanding of tracker performance.
+```
 
 2. Which state estimation algorithm did you choose and why?
 
