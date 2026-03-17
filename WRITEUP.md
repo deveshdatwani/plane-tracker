@@ -79,14 +79,14 @@ b.
 
 **Results for each clip:**
 
-| Clip | Metric 1 | Metric 2 | Metric 3 |
+| Clip | HOTA (ID) | HOTA (ID-Agn) | Det P/R |
 |------|----------|----------|----------|
-| simple_plane_add | | | |
-| simple_plane_add2 | | | |
-| dynamic_to_static | | | |
-| night_plane_overlap | | | |
-| multi_plane | | | |
-| no_planes | | | |
+| simple_plane_add | 29.3% | 82.7% | 90.1% / 89.2% |
+| simple_plane_add2 | 0.0% | 79.1% | 89.1% / 93.2% |
+| dynamic_to_static | 80.1% | 80.1% | 98.3% / 75.7% |
+| night_plane_overlap | 3.0% | 46.1% | 37.2% / 74.5% |
+| multi_plane | 12.1% | 60.6% | 96.9% / 43.3% |
+| no_planes | 100.0% | 100.0% | 100.0% / 100.0% |
 
 ---
 
