@@ -420,23 +420,37 @@ def draw_debug_overlay(frame: np.ndarray, frame_id: int, detections, tracks: Lis
     
     # Show cumulative metrics when ground truth overlay is enabled
     if debug_cfg.get("show_ground_truth", False) and gt_annotations:
-        iou_thresh = debug_cfg.get("metrics_iou_threshold", 0.5)
-        metrics = _compute_all_metrics(detections, tracks, gt_annotations, frame_id, iou_threshold=iou_thresh)
+        eva_mode = debug_cfg.get("eva", True)
         
-        # Detection Metrics
-        lines.append(f"---")
-        lines.append(f"Detection")
-        lines.append(f"P:{metrics['det_precision']*100:.0f}% R:{metrics['det_recall']*100:.0f}%")
-        
-        # ID-Agnostic HOTA
-        lines.append(f"---")
-        lines.append(f"HOTA (ID-Agn)")
-        lines.append(f"{metrics['hota_agnostic']*100:.1f}%")
-        
-        # ID-Specific HOTA
-        lines.append(f"---")
-        lines.append(f"HOTA (ID)")
-        lines.append(f"{metrics['hota_id']*100:.1f}%")
+        if eva_mode:
+            iou_thresh = debug_cfg.get("metrics_iou_threshold", 0.5)
+            metrics = _compute_all_metrics(detections, tracks, gt_annotations, frame_id, iou_threshold=iou_thresh)
+            
+            # Detection Metrics
+            lines.append(f"---")
+            lines.append(f"Detection")
+            lines.append(f"P:{metrics['det_precision']*100:.0f}% R:{metrics['det_recall']*100:.0f}%")
+            
+            # ID-Agnostic HOTA
+            lines.append(f"---")
+            lines.append(f"HOTA (ID-Agn)")
+            lines.append(f"{metrics['hota_agnostic']*100:.1f}%")
+            
+            # ID-Specific HOTA
+            lines.append(f"---")
+            lines.append(f"HOTA (ID)")
+            lines.append(f"{metrics['hota_id']*100:.1f}%")
+        else:
+            # Unseen sequence - no GT available, show n/a
+            lines.append(f"---")
+            lines.append(f"Detection")
+            lines.append(f"n/a")
+            lines.append(f"---")
+            lines.append(f"HOTA (ID-Agn)")
+            lines.append(f"n/a")
+            lines.append(f"---")
+            lines.append(f"HOTA (ID)")
+            lines.append(f"n/a")
     
     if not lines:
         return frame

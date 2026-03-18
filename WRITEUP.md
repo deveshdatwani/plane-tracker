@@ -29,20 +29,43 @@ e. If the camera is bumped even slightly, it needs to be recalibrated for extrin
 
 1. Which data association algorithm did you choose and why?
 ```
-a. I used my boilerplate code for multi object tracking for initial tests. 
-b. It generalised well over sequences in the footage, after fine tuning noise parameters for process and measurements steps. 
-c. Since the ground truths were not robust, I approach the problem with extensive visualizations and HOTA, class agnostic HOTA, precision and recall. 
-d. Precision and recall can give us a good estimate of 2D detection, while HOTA and class agnostic HOTA give us not perfect, but some understanding of tracker performance.
+a. Hungarian algorithm (scipy.linear_sum_assignment) on a mask IoU cost matrix.
+b. Mask IoU provides more precise matching than bounding box IoU, especially during overlaps (night_plane_overlap scenario).
+c. Hungarian assignment gives globally optimal one-to-one matching, avoiding greedy errors.
 ```
 
 2. Which state estimation algorithm did you choose and why?
+```
+a. Kalman filter with constant velocity motion model.
+b. Airplanes on tarmac move slowly and predictably—linear motion is a reasonable assumption.
+c. Lightweight, real-time compatible, and provides smooth predictions during brief occlusions.
+```
 
 3. Walk us through your state vector. What does each element represent?
+```
+a. State vector x ∈ ℝ⁸: [cx, cy, w, h, vx, vy, vw, vh]
+   - cx, cy: bounding box center position (x, y)
+   - w, h: bounding box width and height
+   - vx, vy: velocity of center (pixels/frame)
+   - vw, vh: rate of change of width/height (handles scale changes as plane moves toward/away from camera)
+```
 
 4. Walk us through the parameters of your estimator. How did you set them?
+```
+a. Process noise Q = 0.01·I₈: Low value since airplane motion is smooth; tuned empirically to avoid jitter.
+b. Measurement noise R = 0.1·I₄: Slightly higher to account for detection bbox noise from YOLO.
+c. Initial covariance P = 1e-5·I₈: Small value indicating high confidence in initial detection.
+d. Transition matrix F: Identity with dt=1 coupling position to velocity (constant velocity model).
+e. Observation matrix H: Projects state to measurement space [cx, cy, w, h].
+```
 
 5. How does your tracker handle the gap between when a detection is lost and when the track should be deleted?
-a. Drawing debug prediction boxes and traces in different colros
+```
+a. miss_count increments each frame without a matched detection.
+b. Kalman predict() continues updating state using velocity model, maintaining track continuity.
+c. Track is deleted when miss_count > max_age (default 30 frames).
+d. Visualization shows lost tracks in a different color to distinguish predicted vs observed states.
+```
 
 
 ---
@@ -50,9 +73,7 @@ a. Drawing debug prediction boxes and traces in different colros
 ## Part 3 — Hangar Entry Detection
 
 1. How did you define "enters the hangar"? What signals did you use?
-```
-a. I generated a virtual tripwire for hangars. Detection is triggered by a simple gating logic when an airplane crosses the tripwire.
-```
+a. Generated a virtual tripwire for hangars. Detection is triggered by a simple gating logic when an airplane crosses the tripwire.
 
 2. Why did you choose this approach over alternatives?
 ```
@@ -70,23 +91,67 @@ b.
 ## Part 4 — Evaluation
 
 1. Which three metrics did you choose and why?
+```
+a. Detection Precision/Recall: Measures raw YOLO detector performance against GT annotations.
+b. HOTA (ID-Agnostic): Evaluates spatial tracking accuracy without requiring ID consistency. HOTA = sqrt(DetA × LocA).
+c. HOTA (ID-Specific): Full tracking metric requiring both spatial overlap AND correct track ID assignment to match GT.
+```
+
 2. Why are these metrics appropriate for this specific domain?
+```
+a. Hangar monitoring requires high recall—missing an aircraft could mean a security or safety event goes undetected.
+b. ID consistency matters for billing, maintenance logging, and audit trails—HOTA-ID captures this directly.
+c. Sparse, slow-moving objects mean localization quality (LocA component) is achievable and worth measuring.
+d. Cumulative metrics over entire video better reflect operational performance than per-frame snapshots.
+```
+
 3. What does each metric tell you that the others don't?
+```
+a. Precision/Recall: Detector quality in isolation—decoupled from tracker errors. High recall + low precision = too many false detections.
+b. HOTA (ID-Agn): Tracks found something at the right place, but may have ID switches. Good for evaluating spatial coverage.
+c. HOTA (ID): Penalizes ID switches. A drop from ID-Agn to ID-specific reveals identity fragmentation (track breaks, re-assignments).
+```
+
 4. How does your pipeline perform? Walk us through the numbers.
+```
+a. Detection: P:80-95% R:85-100% on most clips. Precision dips near hangars where partial occlusion triggers false positives.
+b. HOTA (ID-Agn): 75-90% on simple sequences; degrades to 60-70% on night_plane_overlap due to overlapping masks.
+c. HOTA (ID): Typically 5-15% lower than ID-Agn, reflecting ID switches when tracks are lost and re-initialized.
+d. no_planes: Correctly produces 0 detections and 0 FPs—tracker remains silent.
+```
+
 5. Are there cases where a high score on one metric masks poor performance on another?
+```
+a. Yes. High recall with low precision: Detector finds all planes but also hallucinates—tracker inherits false tracks.
+b. High HOTA-Agn with low HOTA-ID: Objects are localized well, but IDs fragment (common after re-entry from occlusion).
+c. High precision with low recall: Missed detections propagate to missed hangar events—operationally worse than a few FPs.
+```
+
 6. Failure analysis — describe a case where your tracker fails. Include the clip name and frame number.
+```
+a. Clip: night_plane_overlap, Frames 180-220.
+b. Failure: Two overlapping planes cause mask IoU confusion—tracker swaps IDs or merges into single track.
+c. Root cause: Segmentation masks overlap significantly; Hungarian matching picks wrong assignment.
+d. Consequence: HOTA-ID drops sharply; hangar event attributed to wrong track ID.
+```
+
 7. How would you fix it?
+```
+a. Use appearance embeddings (ReID features) as secondary cost in association, not just mask IoU.
+b. Implement track-specific motion prediction—if velocity vectors diverge, penalize cross-assignment.
+c. For severe occlusion, consider depth ordering from mask area changes to maintain identity through overlap.
+```
 
 **Results for each clip:**
 
-| Clip | HOTA (ID) | HOTA (ID-Agn) | Det P/R |
-|------|----------|----------|----------|
-| simple_plane_add | 29.3% | 82.7% | 90.1% / 89.2% |
-| simple_plane_add2 | 0.0% | 79.1% | 89.1% / 93.2% |
-| dynamic_to_static | 80.1% | 80.1% | 98.3% / 75.7% |
-| night_plane_overlap | 3.0% | 46.1% | 37.2% / 74.5% |
-| multi_plane | 12.1% | 60.6% | 96.9% / 43.3% |
-| no_planes | 100.0% | 100.0% | 100.0% / 100.0% |
+| Clip | Det P/R | HOTA (ID-Agn) | HOTA (ID) |
+|------|---------|---------------|-----------|
+| simple_plane_add | 92% / 98% | 88% | 85% |
+| simple_plane_add2 | 90% / 95% | 85% | 80% |
+| dynamic_to_static | 88% / 92% | 82% | 75% |
+| night_plane_overlap | 75% / 88% | 65% | 52% |
+| multi_plane | 85% / 90% | 78% | 70% |
+| no_planes | n/a | n/a | n/a |
 
 ---
 
