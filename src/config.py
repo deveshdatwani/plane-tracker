@@ -28,10 +28,16 @@ DEFAULTS = {
         "iou_threshold": 0.2,
         "max_age": 30,
         "min_hits": 10,
+        "max_keypoints": 20,
     },
     "ocr": {
         "enabled": True,
         "interval": 10,
+    },
+    "reid": {
+        "enabled": True,
+        "gallery_max_age": 300,
+        "threshold": 0.7,
     },
     "hangar": {
         "cooldown_frames": 30,

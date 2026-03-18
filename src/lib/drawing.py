@@ -317,6 +317,39 @@ def draw_track(frame, track):
         overlay = frame.copy()
         overlay[track.mask] = color
         cv2.addWeighted(overlay, 0.25, frame, 0.75, 0, frame)
+    
+    # Draw tracked keypoints
+    keypoints = getattr(track, 'keypoints', None)
+    keypoint_ids = getattr(track, 'keypoint_ids', None)
+    if keypoints is not None and len(keypoints) > 0:
+        processing_debug = debug_cfg.get("processing_debug", False)
+        
+        if processing_debug:
+            # Full debug mode: colorful per-ID keypoints with labels
+            kp_colors = [
+                (255, 100, 100), (100, 255, 100), (100, 100, 255),
+                (255, 255, 100), (255, 100, 255), (100, 255, 255),
+                (200, 150, 100), (100, 200, 150), (150, 100, 200),
+                (220, 180, 80), (80, 220, 180), (180, 80, 220)
+            ]
+            
+            for i, kp in enumerate(keypoints):
+                px, py = int(kp[0]), int(kp[1])
+                kp_id = keypoint_ids[i] if keypoint_ids is not None and i < len(keypoint_ids) else i
+                kp_color = kp_colors[kp_id % len(kp_colors)]
+                
+                cv2.circle(frame, (px, py), 4, kp_color, -1, cv2.LINE_AA)
+                cv2.circle(frame, (px, py), 4, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, str(kp_id), (px + 5, py - 5), font, 0.3, kp_color, 1, cv2.LINE_AA)
+        else:
+            # Normal mode: clean cyan X markers, no labels
+            cyan = (255, 255, 0)  # BGR cyan
+            for kp in keypoints:
+                px, py = int(kp[0]), int(kp[1])
+                # Draw small X marker (cheap: just 2 lines)
+                size = 3
+                cv2.line(frame, (px - size, py - size), (px + size, py + size), cyan, 1, cv2.LINE_AA)
+                cv2.line(frame, (px - size, py + size), (px + size, py - size), cyan, 1, cv2.LINE_AA)
 
 
 def _compute_iou(box1, box2):

@@ -182,14 +182,23 @@ class Detector:
         return results
 
 
-def run_processing(cap, detector, hangar_manager, writer=None, gt_annotations=None, no_display=False):
+def run_processing(cap, detector, hangar_manager, writer=None, gt_annotations=None, no_display=False, start_frame=None, end_frame=None, gif_frames=None):
     import cv2
     import time
 
     logger = logging.getLogger(__name__)
     pipeline_times = []
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    logger.info(f"Starting processing loop ({total_frames} frames)")
+    
+    # Handle frame range
+    actual_start = start_frame if start_frame is not None else 0
+    actual_end = end_frame if end_frame is not None else total_frames - 1
+    
+    if actual_start > 0:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, actual_start)
+        logger.info(f"Seeking to frame {actual_start}")
+    
+    logger.info(f"Starting processing loop (frames {actual_start}-{actual_end}, {actual_end - actual_start + 1} frames)")
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -197,6 +206,11 @@ def run_processing(cap, detector, hangar_manager, writer=None, gt_annotations=No
             break
 
         frame_id = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+        
+        # Stop if past end frame
+        if frame_id > actual_end + 1:
+            break
+        
         t_start = time.perf_counter()
 
         # get masked frame if hangar manager provides masking helper
@@ -220,6 +234,11 @@ def run_processing(cap, detector, hangar_manager, writer=None, gt_annotations=No
 
         if writer and vis_frame is not None:
             writer.write(vis_frame)
+        
+        # Collect frames for GIF if requested
+        if gif_frames is not None and vis_frame is not None:
+            # Convert BGR to RGB for PIL
+            gif_frames.append(cv2.cvtColor(vis_frame, cv2.COLOR_BGR2RGB))
 
         if not no_display and vis_frame is not None:
             cv2.imshow("SkyView - Aircraft Tracker", vis_frame)

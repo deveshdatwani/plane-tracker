@@ -10,6 +10,9 @@ Aircraft tracking with hangar enter/exit event detection.
 ### Boston Airport
 ![Boston Airport Demo](outputs/boston_demo.gif)
 
+### Night Plane Overlap
+![Night Plane Overlap Demo](outputs/night_overlap_demo.gif)
+
 ---
 
 ## Pipeline Architecture
@@ -20,122 +23,51 @@ Aircraft tracking with hangar enter/exit event detection.
 │   - Parses CLI args (--video, --annotations, --output, --save-video)        │
 │   - Loads config.yaml via src/config.py                                     │
 │   - Initializes Detector, HangarControlManager                              │
-│   - Runs main processing loop                                               │
+│   - Calls run_processing() main loop                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        src/processing.py                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Detector                                                                   │
-│   - Wraps YOLOv8 (yolov8n-seg.pt) for airplane detection                    │
-│   - Outputs: bboxes, confidence scores, segmentation masks                  │
-│   - Filters by class='airplane' and confidence threshold                   │
-│                                                                             │
-│  TailNumberExtractor                                                        │
-│   - OCR module using pytesseract                                            │
-│   - Extracts N-numbers from bbox crops using multiple preprocessing:        │
-│     grayscale, CLAHE, thresholding, scaling                                 │
-│   - Regex pattern matching for US tail numbers (N + digits)                 │
-│                                                                             │
-│  run_processing()                                                           │
-│   - Main frame loop: read → detect → track → hangar events → visualize     │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
+          ┌───────────────────────────┼───────────────────────────┐
+          ▼                           ▼                           ▼
+┌──────────────────┐    ┌─────────────────────────┐    ┌──────────────────┐
+│   src/config.py  │    │  src/processing.py      │    │  src/lib/utils.py│
+│                  │    │                         │    │                  │
+│ - load_config()  │    │  Detector               │    │ - load_annotations│
+│ - get_config()   │    │   - YOLOv8 inference    │    │ - get_masked_frame│
+│ - DEFAULTS dict  │    │   - bboxes + masks      │    └──────────────────┘
+└──────────────────┘    │                         │
+                        │  run_processing()       │
+                        │   - Main frame loop     │
+                        └────────────┬────────────┘
+                                     │
+                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          src/hangar.py                                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  HangarControlManager                                                       │
-│   - Orchestrates PlaneTracker + HangarControl                               │
-│   - Manages per-frame JSON result accumulation                              │
-│   - Provides get_masked_frame() for hangar boundary visualization           │
 │                                                                             │
-│  HangarControl                                                              │
-│   - Defines hangar tripwire region (left or right side of frame)            │
-│   - Computes IoU between track bboxes and hangar boundary                   │
-│   - Emits "enter"/"exit" events with cooldown to prevent duplicates         │
-│   - Tracks per-aircraft state history for event metadata                    │
-│                                                                             │
-│  HangarEvent (dataclass)                                                    │
-│   - track_id, frame_id, event_type, confidence, metadata                    │
+│  HangarControlManager (orchestrator)                                        │
+│   │                                                                         │
+│   ├──▶ PlaneTracker (src/lib/tracker.py)                                    │
+│   │      - Kalman filter + Hungarian matching                               │
+│   │      - Tracklet: bbox, mask, keypoints, state                           │
+│   │      - Optical flow keypoint tracking                                   │
+│   │                                                                         │
+│   ├──▶ HangarControl                                                        │
+│   │      - Tripwire region + IoU gating                                     │
+│   │      - Enter/exit event detection                                       │
+│   │      - Track history (20-bbox rolling window)                           │
+│   │                                                                         │
+│   └──▶ Results accumulation (frames → JSON)                                 │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        src/lib/tracker.py                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PlaneTracker                                                               │
-│   - Multi-object tracker using Kalman filter + Hungarian matching           │
-│   - Data association: mask IoU cost matrix → scipy.linear_sum_assignment    │
-│   - Track lifecycle: create (new det) → update (matched) → delete (max_age) │
-│   - Optionally runs OCR on tracked bboxes at configurable intervals         │
-│                                                                             │
-│  Tracklet                                                                   │
-│   - Per-object state: Kalman filter (8D state: cx,cy,w,h + velocities)      │
-│   - predict(): propagate state, increment miss_count                        │
-│   - update(): Kalman correction with new measurement, reset miss_count      │
-│   - Stores: bbox, mask, track_id, age, hits, tail_number                    │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
+                                     │
+                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        src/lib/drawing.py                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Visualization Functions:                                                   │
-│   - draw_hangar_tripwire(): Renders hangar boundary with flash on events    │
-│   - draw_track(): Draws bbox, ID label, tail number, segmentation mask      │
-│   - draw_debug_overlay(): FPS, latency, detection/track counts, metrics     │
-│   - draw_ground_truth(): GT boxes overlay with precision/recall/HOTA        │
-│   - draw_processing_debug(): Raw YOLO detections + trajectory curves        │
 │                                                                             │
-│  Trajectory Smoothing:                                                      │
-│   - _catmull_rom_spline(): Interpolating spline through control points      │
-│   - _remove_self_crossings(): Eliminates loops/knots from trajectories      │
-│   - Direction consistency filtering to reject U-turn outliers               │
-│                                                                             │
-│  Metrics Computation:                                                       │
-│   - _compute_all_metrics(): Detection P/R, HOTA (ID-agnostic & ID-specific) │
-│   - _compute_iou(): Box IoU for matching predictions to GT                  │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        src/lib/utils.py                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  - load_annotations(): Parse GT JSON files                                  │
-│  - get_masked_frame(): Apply hangar boundary mask to frame                  │
-│  - Utility functions for bbox manipulation                                  │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          src/config.py                                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  - load_config(): Load config.yaml with YAML parser                         │
-│  - get_config(): Global config accessor                                     │
-│  - DEFAULTS dict: Fallback values for all config sections                   │
-│                                                                             │
-│  Config Sections:                                                           │
-│   - detection: model_path, confidence_threshold, iou_threshold              │
-│   - tracker: iou_threshold, max_age, min_hits                               │
-│   - hangar: cooldown_frames, iou_threshold, flash settings                  │
-│   - ocr: enabled, interval                                                  │
-│   - debug: level (0/1/2), show_ground_truth, processing_debug               │
-│   - visualization: colors for tracks, hangar, GT overlays                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          src/metrics.py                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  TrackingMetrics (abstract interface)                                       │
-│   - update(): Accumulate per-frame predictions vs GT                        │
-│   - compute(): Return dict of metric values                                 │
-│   - Implementation in draw_debug_overlay computes:                          │
-│     • Detection Precision/Recall                                            │
-│     • HOTA (ID-Agnostic): sqrt(DetA × LocA)                                  │
-│     • HOTA (ID-Specific): Requires track ID match with GT                   │
+│  Visualization (called by HangarControlManager.draw_debug)                  │
+│   - draw_track(): bbox, keypoints, mask overlay, labels                     │
+│   - draw_hangar_tripwire(): boundary + flash on events                      │
+│   - draw_debug_overlay(): FPS, latency, metrics                             │
+│   - draw_ground_truth(): GT overlay + P/R/HOTA computation                  │
+│   - draw_processing_debug(): trajectory curves (Catmull-Rom splines)        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -143,17 +75,50 @@ Aircraft tracking with hangar enter/exit event detection.
 
 ## Module Interaction & Data Flow
 
+**Per-frame processing (inside `run_processing`):**
+
 ```
-┌────────────────┐     raw YOLO      ┌──────────────┐    Tracklets     ┌───────────────┐
-│    Detector    │ ──────────────▶   │ PlaneTracker │ ──────────────▶  │ HangarControl │
-│ (processing.py)│   detections      │ (tracker.py) │   self.trackers  │  (hangar.py)  │
-└────────────────┘                   └──────────────┘                  └───────────────┘
-                                            │                                 │
-                                            │                                 │
-                                     Creates/updates              Keeps 20-bbox rolling
-                                     Tracklet objects             history per track for
-                                     (Kalman state,               event metadata
-                                      current bbox, mask)
+Frame N
+   │
+   ▼
+┌────────────────┐
+│   Detector     │──▶ YOLO inference → bboxes + masks + confidence
+│ (processing.py)│
+└───────┬────────┘
+        │ raw detections
+        ▼
+┌───────────────────────────────────────────────────────────────┐
+│              HangarControlManager.handle_frame()              │
+│                                                               │
+│   ┌──────────────────┐                                        │
+│   │  PlaneTracker    │                                        │
+│   │   .spin()        │──▶ Kalman predict → Hungarian match    │
+│   │                  │    → Kalman update → keypoint tracking │
+│   └────────┬─────────┘                                        │
+│            │ self.trackers (dict of Tracklets)                │
+│            ▼                                                  │
+│   ┌──────────────────┐                                        │
+│   │  HangarControl   │                                        │
+│   │   .spin()        │──▶ IoU with tripwire → enter/exit      │
+│   └────────┬─────────┘    events + track history              │
+│            │                                                  │
+│            ▼                                                  │
+│   Accumulate to self.results["frames"][frame_id]              │
+└───────────────────────────────────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────────────────────────┐
+│              HangarControlManager.draw_debug()                │
+│                                                               │
+│   draw_processing_debug() → trajectory curves                 │
+│   draw_debug_overlay()    → FPS, metrics, counts              │
+│   draw_hangar_tripwire()  → boundary visualization            │
+│   draw_ground_truth()     → GT overlay + P/R/HOTA             │
+│   draw_track()            → bbox, keypoints, mask, labels     │
+└───────────────────────────────────────────────────────────────┘
+        │
+        ▼
+Output frame (display / write video / JSON)
 ```
 
 ---
@@ -164,6 +129,8 @@ Aircraft tracking with hangar enter/exit event detection.
 |----------|----------|----------------|-------------|
 | `detections` | `PlaneTracker.spin()` | Raw YOLO bboxes + masks | **None** — local var, discarded each frame |
 | `self.trackers` | `PlaneTracker` | Dict of active `Tracklet` objects | Current state only, no history |
+| `track.keypoints` | `Tracklet` | Nx2 array of tracked keypoints | Updated each frame via optical flow |
+| `track.keypoint_ids` | `Tracklet` | Persistent IDs for each keypoint | Survives across frames for same track |
 | `track._trajectory` | `drawing.py` | Last 30 centroids per track | Visualization only, not persisted to JSON |
 | `self.track_history` | `HangarControl` | Last 20 bboxes per track (deque) | Rolling window, deleted when track dies |
 | `self.results["frames"]` | `HangarControlManager` | Per-frame track output | Written to JSON (tracks, not raw detections) |

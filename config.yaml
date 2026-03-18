@@ -13,11 +13,18 @@ tracker:
   iou_threshold: 0.2       # Minimum IoU to match detection to track
   max_age: 100              # Frames before deleting lost track
   min_hits: 10             # Minimum hits before track is considered confirmed
+  max_keypoints: 20        # Maximum keypoints to track per airplane
 
 # OCR settings (tail number extraction)
 ocr:
   enabled: true
   interval: 10             # Run OCR every N frames per track
+
+# Re-ID settings (reappearance matching)
+reid:
+  enabled: true
+  gallery_max_age: 300     # Keep features in gallery for N frames after track dies
+  threshold: 0.7           # Cosine similarity threshold for Re-ID match
 
 # Hangar event detection
 hangar:
@@ -36,7 +43,7 @@ debug:
   show_tracks: true
   show_latency: true
   show_fps: true
-  processing_debug: true  # Draw all detections with IDs and trajectory curves (expensive)
+  processing_debug: false  # Draw all detections with IDs and trajectory curves (expensive)
   show_ground_truth: true # Overlay GT annotations for debugging/comparison
   metrics_iou_threshold: 0.5  # IOU threshold for precision/recall/HOTA metrics
   eva: false                # If false, sequence is treated as unseen (no GT), metrics show "n/a"
