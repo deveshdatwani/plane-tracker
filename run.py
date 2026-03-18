@@ -4,7 +4,7 @@ from pathlib import Path
 import cv2
 import logging
 from src.config import load_config, get_config
-from src.processing import Detector, run_processing
+from src.processing import Detector, run_processing, FrameStabilizer
 from src.hangar import HangarControlManager
 from src.lib.utils import load_annotations
 from src.lib.drawing import draw_fyveby_gt
@@ -50,6 +50,13 @@ def main():
     )
     hangar_manager = HangarControlManager(frame_width=width, frame_height=height, seq=str(video_path), output_path=args.output, fps=fps)
     
+    # Initialize frame stabilizer if enabled
+    stab_cfg = cfg.get("stabilization", {})
+    stabilizer = None
+    if stab_cfg.get("enabled", False):
+        stabilizer = FrameStabilizer(stab_cfg)
+        logger.info(f"Frame stabilizer enabled with {stab_cfg.get('num_anchors', 8)} anchor points")
+    
     gt_annotations = None
     if args.annotations:
         gt_annotations = load_annotations(args.annotations)
@@ -71,7 +78,8 @@ def main():
         no_display=args.no_display,
         start_frame=args.start,
         end_frame=args.end,
-        gif_frames=gif_frames
+        gif_frames=gif_frames,
+        stabilizer=stabilizer
     )
 
     cap.release()

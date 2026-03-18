@@ -43,6 +43,28 @@ debug:
   metrics_iou_threshold: 0.5  # IOU threshold for precision/recall/HOTA metrics
   eva: false                # If false, sequence is treated as unseen (no GT), metrics show "n/a"
 
+# Anti-wobble frame stabilization
+stabilization:
+  enabled: true
+  num_anchors: 8                  # Number of anchor points to track
+  anchor_box_size: 32             # Size of template box around each anchor
+  search_margin: 16               # Search area margin around anchor
+  min_confidence: 0.7             # Minimum template match confidence
+  reinit_threshold: 0.5           # Reinitialize anchors if avg confidence drops below this
+  corner_detection:
+    quality_level: 0.01           # Corner quality threshold (0-1)
+    min_distance: 50              # Minimum distance between corners
+    block_size: 7                 # Block size for corner detection
+  visualization:
+    enabled: true
+    draw_anchors: true            # Draw anchor boxes
+    draw_translation: true        # Draw translation vector
+    draw_original_box: true       # Draw original position box
+    anchor_color: [0, 255, 255]   # BGR - yellow
+    original_color: [0, 0, 255]   # BGR - red for original position
+    corrected_color: [0, 255, 0]  # BGR - green for corrected position
+    line_thickness: 2
+
 # Visualization settings
 visualization:
   track_color_active: [200, 220, 100]      # BGR
