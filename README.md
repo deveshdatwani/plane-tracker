@@ -4,7 +4,11 @@
 
 Aircraft tracking with hangar enter/exit event detection.
 
+### Simple Plane Add
 ![Demo with GT overlay and metrics](outputs/demo_metrics.gif)
+
+### Boston Airport
+![Boston Airport Demo](outputs/boston_demo.gif)
 
 ## Usage
 
