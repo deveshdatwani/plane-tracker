@@ -141,38 +141,7 @@ Aircraft tracking with hangar enter/exit event detection.
 
 ---
 
-## Data Flow (Per Frame)
-
-```
-Frame N from video
-       │
-       ▼
-┌──────────────┐
-│   Detector   │ ──▶ YOLO inference → bboxes + masks + confidence
-└──────────────┘
-       │
-       ▼
-┌──────────────┐
-│ PlaneTracker │ ──▶ Kalman predict → Hungarian matching → Kalman update
-└──────────────┘     Creates/updates/deletes Tracklets
-       │
-       ▼
-┌──────────────┐
-│ HangarControl│ ──▶ IoU with hangar boundary → "enter"/"exit" events
-└──────────────┘
-       │
-       ▼
-┌──────────────┐
-│  Visualizer  │ ──▶ Draw tracks, tripwire, debug info, GT overlay
-└──────────────┘
-       │
-       ▼
-Output frame (display / save video / JSON results)
-```
-
----
-
-## Module Interaction
+## Module Interaction & Data Flow
 
 ```
 ┌────────────────┐     raw YOLO      ┌──────────────┐    Tracklets     ┌───────────────┐
