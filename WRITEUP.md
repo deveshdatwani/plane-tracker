@@ -1,8 +1,8 @@
 # Take-Home Write-Up
 
-**Name:*Devesh Datwani*
-**Date:*03/16/2026*
-**Time spent:*4 hours*
+**Name:** Devesh Datwani  
+**Date:** 03/16/2026  
+**Time spent:** 4 hours
 
 ---
 
@@ -10,18 +10,18 @@
 
 1. Why did you choose this algorithm for this domain specifically?
 ```
-a. I chose YOLOV8n to prioritize tracker robustness for reducing reliance on heay models for edge deployment.
-b. The airplane positions in the footage are sparse (except 1), large relative to the scene, and move slowly. So a small real-time detector is sufficient. 
+a. I chose YOLOv8n to prioritize tracker robustness while reducing reliance on heavy models for edge deployment.
+b. The airplane positions in the footage are sparse (except one clip), large relative to the scene, and move slowly, so a small real-time detector is sufficient.
 c. For the night scenario with overlapping airplanes, I used a segmentation model to obtain more precise object boundaries, which improves tracking stability during overlaps. This works for other cases too at an additional 10-15% cost.
 ```
 
 2. What are its limitations given the footage provided?
 ```
-a. If an airplane leaves for longer than the track persistence time (500s), its ID switches after re-entry due to track termination.
-b. The solution will struggle in case of long occlusions between planes.
-c. The detection solution (yolov8n) is trained on COCO dataset, so it struggles with localization and classification accuracy on airplanes, especially near hangars.
-d. Without reliable frames timestamps, kalman filter (assumes constant intervals) tracking stability will degrade in cases of jitter / frame drops. 
-e. If the camera is bumped even slightly, it needs to be recalibrated for extrinsics to correctly localize the hangar tripwire in image frame.
+a. If an airplane leaves for longer than the track persistence time (30 frames by default), its ID switches after re-entry due to track termination.
+b. The solution will struggle in cases of long occlusions between planes.
+c. The detection model (YOLOv8n) is trained on the COCO dataset, so it struggles with localization and classification accuracy on airplanes, especially near hangars.
+d. Without reliable frame timestamps, the Kalman filter (which assumes constant intervals) will degrade in tracking stability during jitter or frame drops.
+e. If the camera is bumped even slightly, it needs to be recalibrated for extrinsics to correctly localize the hangar tripwire in the image frame.
 ```
 ---
 
@@ -73,18 +73,20 @@ d. Visualization shows lost tracks in a different color to distinguish predicted
 ## Part 3 — Hangar Entry Detection
 
 1. How did you define "enters the hangar"? What signals did you use?
-a. Generated a virtual tripwire for hangars. Detection is triggered by a simple gating logic when an airplane crosses the tripwire.
+```
+a. I defined a virtual tripwire at the hangar boundary. An "enter" event is triggered when an airplane's bounding box crosses from outside to inside the tripwire zone (IoU-based gating logic).
+```
 
 2. Why did you choose this approach over alternatives?
 ```
-a. Auto detection is prone for failure presently there's not enough context / features / signal for any model to work with for anchor detection. 
-b. Additionally, the anchor box would not be stable with per frame detection.
+a. Auto-detection of hangar boundaries is prone to failure—there's currently not enough visual context or features for a model to reliably detect the hangar region.
+b. Additionally, per-frame hangar detection would produce unstable anchor boxes, leading to noisy enter/exit events.
 ```
 
 3. What failure modes does your approach have?
 ```
-a. FPs and FNs can be generated if the camera is moved. It would require re-calibration. An anti-wobble system can generate alerts for quick TTR.
-b. 
+a. False positives and false negatives can occur if the camera is moved, requiring re-calibration of the tripwire position.
+b. An anti-wobble detection system could generate alerts for quick time-to-resolution (TTR).
 ```
 ---
 
@@ -163,15 +165,15 @@ a.
 ```
 2. What are the key differences from image-based detection?
 ```
-a. Lower resolution / signal quantity, so higher location accuracy with image based detection.
+a. Lower resolution and signal density in point clouds, but higher 3D location accuracy compared to image-based detection.
 ```
 3. How would you fuse camera and LiDAR outputs into a single tracking pipeline?
 ```
-a. Build a system that works with image overlayed on point cloud. This involves
-    i. Generating a high resolution scanned point cloud of inside the hangar and outside  
-    ii. Calibrate cameras using correspondences / registration of features between point cloud and image. For version 1, this can be manual and usually doesn't require recalibration if the camera mounts and PTZ are stable. 
-    iii. Autocalibration using polylines. Generate polylines on point cloud. Use image transformation to solve for both intrinsic and extrinsic of cameras. This is useful if the camera is pan tiled zoomed often. 
-b. Another option is to extract world coordinates of keypoints on an airplane to generate 3D pose in world coorindate.
+a. Build a system that projects images onto the point cloud. This involves:
+    i. Generating a high-resolution scanned point cloud of both the hangar interior and exterior.
+    ii. Calibrating cameras using correspondences and feature registration between the point cloud and image. For version 1, this can be manual and typically doesn't require recalibration if camera mounts and PTZ settings are stable.
+    iii. Auto-calibration using polylines: generate polylines on the point cloud and use image transformations to solve for both intrinsic and extrinsic camera parameters. This is useful if the camera is frequently panned, tilted, or zoomed.
+b. Another option is to extract world coordinates of keypoints on an airplane to generate a 3D pose in world coordinates.
 ```
 ---
 
@@ -179,11 +181,11 @@ b. Another option is to extract world coordinates of keypoints on an airplane to
 
 *What would you improve first and why?*
 ```
-a. Re-ID with feature embedding 
-b. Fine tuning YOLO model for better generalization on airplane class
-c. This would greatly help with Re-ID for single / multi-camera tracking 
-d. I would also integrate an OCR for added feature for Re-ID
-e. Build anti-wobble and background anti-wobble 
+a. Re-ID with feature embeddings to maintain identity through occlusions.
+b. Fine-tune the YOLO model for better generalization on the airplane class.
+c. This would greatly help with Re-ID for single and multi-camera tracking.
+d. Integrate OCR as an additional feature for Re-ID (matching tail numbers across views).
+e. Build anti-wobble detection and background stabilization for camera motion robustness.
 ```
 
 
