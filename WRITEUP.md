@@ -171,7 +171,9 @@ c. For severe occlusion, consider depth ordering from mask area changes to maint
 
 1. How would you design an object detection algorithm for point cloud data?
 ```
-a. 
+a. I have not worked with point cloud object detection, but I would probably project point cloud data on calibrated camera image frame to extract world point for objects in the image frame. 
+b. Lidar data source might also help with segmentation / localization of airplanes in image frame, possibly for
+c. Quick search shows point pillers, voxel based detection. 
 ```
 2. What are the key differences from image-based detection?
 ```
