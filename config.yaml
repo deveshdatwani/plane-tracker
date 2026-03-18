@@ -15,11 +15,6 @@ tracker:
   min_hits: 10             # Minimum hits before track is considered confirmed
   max_keypoints: 20        # Maximum keypoints to track per airplane
 
-# OCR settings (tail number extraction)
-ocr:
-  enabled: true
-  interval: 10             # Run OCR every N frames per track
-
 # Re-ID settings (reappearance matching)
 reid:
   enabled: true
@@ -54,6 +49,5 @@ visualization:
   track_color_lost: [120, 120, 200]        # BGR
   hangar_boundary_color: [60, 60, 60]      # BGR
   gt_color: [255, 0, 255]                  # BGR - magenta for ground truth
-  tail_number_color: [0, 255, 255]         # BGR (cyan/yellow)
   font_scale: 0.45
   font_thickness: 1

@@ -3,7 +3,6 @@ import cv2
 import logging
 from scipy.optimize import linear_sum_assignment
 from src.lib.drawing import draw_track
-from src.processing import TailNumberExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +144,6 @@ class Tracklet:
         self.mask = mask
         self.age = 0
         self.hits = 0
-        self.tail_number = None  # Extracted via OCR
         self.max_keypoints = max_keypoints  # Configurable max keypoints
         self.dim_x, self.dim_z = 8, 4
         self.x = np.zeros((self.dim_x, 1), dtype=np.float32)
@@ -252,11 +250,10 @@ class Tracklet:
         }
 
 class PlaneTracker:
-    def __init__(self, iou_threshold=None, max_age=None, enable_ocr=None, ocr_interval=None, min_hits=None):
+    def __init__(self, iou_threshold=None, max_age=None, min_hits=None):
         from src.config import get_config
         cfg = get_config()
         tracker_cfg = cfg.get("tracker", {})
-        ocr_cfg = cfg.get("ocr", {})
         reid_cfg = cfg.get("reid", {})
         
         self.trackers = {}
@@ -265,17 +262,14 @@ class PlaneTracker:
         self.max_age = max_age if max_age is not None else tracker_cfg.get("max_age", 30)
         self.min_hits = min_hits if min_hits is not None else tracker_cfg.get("min_hits", 10)
         self.max_keypoints = tracker_cfg.get("max_keypoints", 20)
-        self.enable_ocr = enable_ocr if enable_ocr is not None else ocr_cfg.get("enabled", True)
-        self._ocr_extractor = TailNumberExtractor() if self.enable_ocr else None
-        self._ocr_interval = ocr_interval if ocr_interval is not None else ocr_cfg.get("interval", 10)
         
         # Re-ID feature gallery for matching reappearing objects
         self.enable_reid = reid_cfg.get("enabled", True)
-        self.feature_gallery = {}  # {track_id: {"feature": vec, "age": frames_since_death, "tail_number": str}}
+        self.feature_gallery = {}  # {track_id: {"feature": vec, "age": frames_since_death}}
         self.gallery_max_age = reid_cfg.get("gallery_max_age", 300)  # Keep features for N frames
         self.reid_threshold = reid_cfg.get("threshold", 0.7)  # Cosine similarity threshold
         
-        logger.debug(f"PlaneTracker initialized: iou_thresh={self.iou_threshold}, max_age={self.max_age}, min_hits={self.min_hits}, ocr={self.enable_ocr}, reid={self.enable_reid}")
+        logger.debug(f"PlaneTracker initialized: iou_thresh={self.iou_threshold}, max_age={self.max_age}, min_hits={self.min_hits}, reid={self.enable_reid}")
     
     @staticmethod
     def get_mask_iou(mask1, mask2):
@@ -357,7 +351,6 @@ class PlaneTracker:
                 entry = self.feature_gallery.pop(matched_id)
                 self.trackers[matched_id] = Tracklet(matched_id, det['bbox'], det['mask'], max_keypoints=self.max_keypoints)
                 self.trackers[matched_id]._prev_gray = gray_frame
-                self.trackers[matched_id].tail_number = entry.get("tail_number")  # Restore tail number
                 logger.info(f"Track {matched_id} resurrected via Re-ID")
             else:
                 # Create new track
@@ -379,21 +372,10 @@ class PlaneTracker:
                     feature_vec = extract_feature_vector(frame, t.mask, t.bbox)
                     self.feature_gallery[tid] = {
                         "feature": feature_vec,
-                        "age": 0,
-                        "tail_number": t.tail_number
+                        "age": 0
                     }
                     logger.debug(f"Track {tid} added to Re-ID gallery")
                 logger.debug(f"Track {tid} deleted (age={t.age}, hits={t.hits}, miss_count={t.miss_count})")
                 del self.trackers[tid]
                 continue
-            # Try OCR for tail number periodically if not yet found
-            # Run more frequently when track is young, then slow down
-            if self.enable_ocr and self._ocr_extractor and t.tail_number is None:
-                interval = 3 if t.age < 30 else self._ocr_interval
-                if t.age % interval == 0 and t.miss_count == 0:
-                    logger.debug(f"Track {tid}: triggering OCR (age={t.age}, hits={t.hits})")
-                    tail = self._ocr_extractor.extract(frame, t.bbox)
-                    if tail:
-                        t.tail_number = tail
-                        logger.info(f"Track {tid} tail number extracted: {tail}")
             draw_track(frame, t)

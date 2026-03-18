@@ -1,4 +1,4 @@
-#!/home/deveshdatwani/mot/venv/bin/python3
+#!/usr/bin/env python3
 import argparse
 from pathlib import Path
 import cv2

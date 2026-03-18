@@ -278,7 +278,6 @@ def draw_track(frame, track):
     # Color coding from config
     color_active = tuple(vis_cfg.get("track_color_active", [200, 220, 100]))
     color_lost = tuple(vis_cfg.get("track_color_lost", [120, 120, 200]))
-    tail_color = tuple(vis_cfg.get("tail_number_color", [0, 255, 255]))
     font_scale = vis_cfg.get("font_scale", 0.45)
     thickness = vis_cfg.get("font_thickness", 1)
     
@@ -296,12 +295,6 @@ def draw_track(frame, track):
     line2 = f"hits:{track.hits}  miss:{track.miss_count}"
     y_offset = y1 - 22
     cv2.putText(frame, line2, (x1, y_offset), font, font_scale, color, thickness, cv2.LINE_AA)
-    
-    # Draw tail number if available (same style as track info, below bbox)
-    tail_number = getattr(track, 'tail_number', None)
-    if tail_number:
-        tail_y = y2 + 15
-        cv2.putText(frame, tail_number, (x1, tail_y), font, font_scale, tail_color, thickness, cv2.LINE_AA)
     
     # Draw status badge
     if is_lost:
