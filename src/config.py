@@ -28,10 +28,12 @@ DEFAULTS = {
         "iou_threshold": 0.2,
         "max_age": 30,
         "min_hits": 10,
+        "max_keypoints": 20,
     },
-    "ocr": {
+    "reid": {
         "enabled": True,
-        "interval": 10,
+        "gallery_max_age": 300,
+        "threshold": 0.7,
     },
     "hangar": {
         "cooldown_frames": 30,
@@ -56,7 +58,6 @@ DEFAULTS = {
         "track_color_active": [200, 220, 100],
         "track_color_lost": [120, 120, 200],
         "hangar_boundary_color": [60, 60, 60],
-        "tail_number_color": [0, 255, 255],
         "gt_color": [255, 0, 255],
         "font_scale": 0.45,
         "font_thickness": 1,

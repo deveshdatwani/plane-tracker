@@ -11,13 +11,15 @@ detection:
 # Tracker settings (Kalman filter based)
 tracker:
   iou_threshold: 0.2       # Minimum IoU to match detection to track
-  max_age: 30              # Frames before deleting lost track
+  max_age: 100              # Frames before deleting lost track
   min_hits: 10             # Minimum hits before track is considered confirmed
+  max_keypoints: 20        # Maximum keypoints to track per airplane
 
-# OCR settings (tail number extraction)
-ocr:
+# Re-ID settings (reappearance matching)
+reid:
   enabled: true
-  interval: 10             # Run OCR every N frames per track
+  gallery_max_age: 300     # Keep features in gallery for N frames after track dies
+  threshold: 0.7           # Cosine similarity threshold for Re-ID match
 
 # Hangar event detection
 hangar:
@@ -30,7 +32,7 @@ hangar:
 
 # Debug overlay settings
 debug:
-  level: 2                 # 0=off, 1=minimal, 2=full
+  level: 1               # 0=off, 1=minimal, 2=full
   show_frame_id: true
   show_detections: true
   show_tracks: true
@@ -39,7 +41,7 @@ debug:
   processing_debug: false  # Draw all detections with IDs and trajectory curves (expensive)
   show_ground_truth: true # Overlay GT annotations for debugging/comparison
   metrics_iou_threshold: 0.5  # IOU threshold for precision/recall/HOTA metrics
-  eva: false                # If false, sequence is treated as unseen (no GT), metrics show "n/a"
+  eva: true                 # If false, sequence is treated as unseen (no GT), metrics show "n/a"
 
 # Visualization settings
 visualization:
@@ -47,6 +49,5 @@ visualization:
   track_color_lost: [120, 120, 200]        # BGR
   hangar_boundary_color: [60, 60, 60]      # BGR
   gt_color: [255, 0, 255]                  # BGR - magenta for ground truth
-  tail_number_color: [0, 255, 255]         # BGR (cyan/yellow)
   font_scale: 0.45
   font_thickness: 1
