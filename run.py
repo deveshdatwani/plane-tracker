@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 import cv2
 import logging
-from src.config import load_config, get_config
+from src.config import load_config
 from src.processing import Detector, run_processing
 from src.hangar import HangarControlManager
 from src.lib.utils import load_annotations
@@ -15,10 +15,6 @@ def parse_args():
     parser.add_argument("--output", type=str, default=None, help="Path to write output JSON (optional)")
     parser.add_argument("--no-display", action="store_true", help="Disable live visualization")
     parser.add_argument("--save-video", type=str, default=None, help="Path to save annotated output video")
-    parser.add_argument("--gif", type=str, default=None, help="Path to save GIF output")
-    parser.add_argument("--start", type=int, default=None, help="Start frame (0-indexed)")
-    parser.add_argument("--end", type=int, default=None, help="End frame (inclusive)")
-    parser.add_argument("--config", type=str, default="config.yaml", help="Path to config YAML file")
     return parser.parse_args()
 
 def main():
@@ -27,7 +23,7 @@ def main():
     logger = logging.getLogger(__name__)
     
     # Load configuration
-    cfg = load_config(args.config)
+    cfg = load_config()
     det_cfg = cfg["detection"]
     
     video_path = Path(args.video)
@@ -59,40 +55,18 @@ def main():
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(args.save_video, fourcc, fps, (width, height))
     
-    # Collect frames for GIF if requested
-    gif_frames = [] if args.gif else None
-    
     # run the processing loop (contains frame loop inside processing)
     pipeline_times = run_processing(
         cap, detector, hangar_manager, 
         writer=writer, 
         gt_annotations=gt_annotations, 
-        no_display=args.no_display,
-        start_frame=args.start,
-        end_frame=args.end,
-        gif_frames=gif_frames
+        no_display=args.no_display
     )
 
     cap.release()
     if writer:
         writer.release()
     cv2.destroyAllWindows()
-    
-    # Save GIF if requested
-    if args.gif and gif_frames:
-        try:
-            from PIL import Image
-            images = [Image.fromarray(f) for f in gif_frames]
-            images[0].save(
-                args.gif,
-                save_all=True,
-                append_images=images[1:],
-                duration=int(1000 / fps),  # ms per frame
-                loop=0
-            )
-            logger.info(f"Saved GIF to {args.gif} ({len(gif_frames)} frames)")
-        except ImportError:
-            logger.error("PIL not installed. Cannot save GIF. Install via: pip install Pillow")
     
     avg_ms = (sum(pipeline_times) / len(pipeline_times)) * 1000 if pipeline_times else 0
     if avg_ms > 0:

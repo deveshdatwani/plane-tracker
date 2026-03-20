@@ -90,7 +90,7 @@ class HangarControlManager:
     def __init__(self, frame_width, frame_height, seq, output_path=None, fps=None):
         self.tracker = PlaneTracker()
         self.hangar = HangarControl(frame_width=frame_width, frame_height=frame_height, seq=seq)
-        self.results = {"video": seq, "fps": fps, "frames": {}}
+        self.results = {"frames": {}}
         self.output_path = output_path
         self._frame_width = frame_width
         self._frame_height = frame_height
@@ -113,15 +113,7 @@ class HangarControlManager:
             "class": "aircraft"
         } for idx, tx in self.tracker.trackers.items()]
         
-        # Build frame output with optional hangar events
-        frame_output = {"tracks": labels}
-        if new_events:
-            frame_output["hangar_events"] = [
-                {"track_id": e.track_id, "event_type": e.event_type}
-                for e in new_events
-            ]
-        
-        self.results["frames"][frame_id] = frame_output
+        self.results["frames"][str(frame_id)] = labels
 
         return labels, new_events
 
